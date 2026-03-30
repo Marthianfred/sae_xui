@@ -36,45 +36,18 @@ export class CustomersProcessor extends WorkerHost {
   }
 
   private async startMassiveSync(apiConnect: string, nro_registros: number) {
-    this.logger.log(`Iniciando MIGRACIÓN POR VENTANAS TEMPORALES (Slicing Mensual)...`);
+    this.logger.log(`Iniciando MIGRACIÓN DIRECTA desde Postgres (High Performance)...`);
     
-    const batchSize = 2000;
-    const startYear = 2021;
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-    
-    const jobs = [];
-    
-    for (let year = startYear; year <= currentYear; year++) {
-      const monthLimit = (year === currentYear) ? currentMonth : 12;
-      
-      for (let month = 1; month <= monthLimit; month++) {
-        const monthStr = month < 10 ? `0${month}` : `${month}`;
-        const lastDay = new Date(year, month, 0).getDate();
-        
-        const desde = `${year}-${monthStr}-01`;
-        const hasta = `${year}-${monthStr}-${lastDay}`;
-        
-        jobs.push({
-          name: 'sync-page',
-          data: {
-            type: 'SYNC_PAGE',
-            apiConnect,
-            pagina: 0,
-            nro_registros: batchSize,
-            desde,
-            hasta
-          },
-          opts: { priority: 1, delay: month * 100 } // Pequeño stagger para no sobrecargar el inicio
-        });
-      }
+    // Ejecutamos la migración directa. 
+    // Al ser un stream único, no necesitamos encolar cientos de jobs.
+    try {
+      const total = await this.customersSync.syncDirectlyFromDB();
+      this.logger.log(`>> Proceso finalizado. Se han migrado ${total} registros.`);
+      return { status: 'COMPLETED', total };
+    } catch (error) {
+      this.logger.error(`Fallo en el motor de streaming: ${error.message}`);
+      throw error;
     }
-
-    this.logger.log(`Encolando ${jobs.length} ventanas mensuales para procesamiento concurrente...`);
-    await this.syncQueue.addBulk(jobs);
-    this.logger.log(`>>> Motor de Slicing activado.`);
-    
-    return { status: 'STARTED_SLICING', windows: jobs.length };
   }
 
   private async syncPage(apiConnect: string, pagina: number, nro_registros: number, desde?: string, hasta?: string) {

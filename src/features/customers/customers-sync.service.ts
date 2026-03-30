@@ -3,16 +3,19 @@ import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Client } from 'pg';
+import QueryStream from 'pg-query-stream';
 
 @Injectable()
 export class CustomersSyncService {
   private readonly logger = new Logger(CustomersSyncService.name);
-  private readonly migrationFile = path.join(process.cwd(), 'migration_high_performance.cql');
+  private readonly migrationFile = path.join(
+    process.cwd(),
+    'migration_high_performance.cql',
+  );
   private writeStream: fs.WriteStream | null = null;
 
-  constructor(
-    private readonly http: HttpService,
-  ) {
+  constructor(private readonly http: HttpService) {
     this.initializeStream();
   }
 
@@ -23,27 +26,35 @@ export class CustomersSyncService {
     this.writeStream = fs.createWriteStream(this.migrationFile, { flags: 'a' });
   }
 
-  async syncMassive(apiConnect: string, pagina = 0, nroRegistros = 2000, desde?: string, hasta?: string) {
+  async syncMassive(
+    apiConnect: string,
+    pagina = 0,
+    nroRegistros = 2000,
+    desde?: string,
+    hasta?: string,
+  ) {
     let url = `https://api.saeplus.com/public/resources/contratos/ListadoAbonados?pagina=${pagina}&nro_registros=${nroRegistros}`;
-    
+
     if (desde) url += `&desde=${desde}`;
     if (hasta) url += `&hasta=${hasta}`;
-    
+
     try {
-      this.logger.log(`Solicitando Página ${pagina} (${nroRegistros} registros) con Auth Completa...`);
+      this.logger.log(
+        `Solicitando Página ${pagina} (${nroRegistros} registros) con Auth Completa...`,
+      );
       const apiStartTime = Date.now();
-      
+
       const response = await lastValueFrom(
-        this.http.get(url, { 
-          headers: { 
-            'Accept-Encoding': 'application/json', 
-            'Accept': 'application/json', 
-            'Api-Token': process.env.SAE_TOKEN, 
-            'Api-Connect': process.env.SAE_CONNECT || apiConnect, 
-            'Authorization': process.env.SAE_AUTH, 
-            'Cookie': process.env.SAE_COOKIE
-          } 
-        })
+        this.http.get(url, {
+          headers: {
+            'Accept-Encoding': 'application/json',
+            Accept: 'application/json',
+            'Api-Token': process.env.SAE_TOKEN,
+            'Api-Connect': process.env.SAE_CONNECT || apiConnect,
+            Authorization: process.env.SAE_AUTH,
+            Cookie: process.env.SAE_COOKIE,
+          },
+        }),
       );
 
       const apiDuration = (Date.now() - apiStartTime) / 1000;
@@ -52,7 +63,7 @@ export class CustomersSyncService {
       if (response.data?.message === 'Ok' || response.data?.data) {
         const customers = response.data.data;
         const writeStartTime = Date.now();
-        
+
         for (const customer of customers) {
           const statement = this.generateInsertStatement(customer);
           if (this.writeStream) {
@@ -61,21 +72,27 @@ export class CustomersSyncService {
         }
 
         const writeDuration = (Date.now() - writeStartTime) / 1000;
-        this.logger.debug(`Escritura en disco completada en ${writeDuration.toFixed(3)}s`);
-        
-        this.logger.log(`Página ${pagina} procesada exitosamente. Lote de ${customers.length} registros.`);
-        
+        this.logger.debug(
+          `Escritura en disco completada en ${writeDuration.toFixed(3)}s`,
+        );
+
+        this.logger.log(
+          `Página ${pagina} procesada exitosamente. Lote de ${customers.length} registros.`,
+        );
+
         return {
           totalItems: response.data.TotalItems ?? 0,
           totalPaginas: response.data.totalPaginas ?? 0,
           paginaActual: response.data.paginaActual ?? pagina,
-          count: customers.length
+          count: customers.length,
         };
       }
     } catch (error) {
       this.logger.error(`Error crítico en Página ${pagina}: ${error.message}`);
       if (error.response) {
-        this.logger.error(`Respuesta API: ${JSON.stringify(error.response.data).substring(0, 200)}`);
+        this.logger.error(
+          `Respuesta API: ${JSON.stringify(error.response.data).substring(0, 200)}`,
+        );
       }
       throw error;
     }
@@ -96,8 +113,77 @@ export class CustomersSyncService {
     return [];
   }
 
+  async syncDirectlyFromDB() {
+    this.logger.log('--- INICIANDO MIGRACIÓN ULTRA-RÁPIDA (DIRECT PG DB) ---');
+    const startTime = Date.now();
+    let totalCount = 0;
+
+    const client = new Client({
+      host: process.env.HOST_SAE,
+      user: process.env.USER_SAE,
+      password: process.env.PASSWORD_SAE,
+      database: process.env.DATABASE_SAE,
+      port: 5432,
+    });
+
+    try {
+      await client.connect();
+      this.logger.log('Conexión con Postgres SAE establecida con éxito.');
+
+      const sql = `
+        SELECT 
+          a.*, 
+          f.id_franq, 
+          f.nombre_franq, 
+          f.det_tipo_servicio, 
+          f.det_suscripcion 
+        FROM abonados a
+        LEFT JOIN franq f ON a.id_franq = f.id_franq 
+        WHERE a.nro_contrato != 0 
+        ORDER BY a.id_contrato ASC
+      `;
+
+      const query = new QueryStream(sql);
+      const stream = client.query(query);
+
+      return new Promise((resolve, reject) => {
+        stream.on('data', (row) => {
+          totalCount++;
+          const statement = this.generateInsertStatement(row);
+          if (this.writeStream) {
+            this.writeStream.write(statement);
+          }
+
+          if (totalCount % 10000 === 0) {
+            const partialTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            this.logger.log(`>> [Postgres] Progreso: ${totalCount} registros inyectados... [${partialTime}s]`);
+          }
+        });
+
+        stream.on('end', async () => {
+          const finalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+          this.logger.log(`!!! MIGRACIÓN COMPLETA (POSTGRES) !!!`);
+          this.logger.log(`Total final: ${totalCount} registros en ${finalTime}s.`);
+          await client.end();
+          resolve(totalCount);
+        });
+
+        stream.on('error', async (err) => {
+          this.logger.error(`Error en streaming de Postgres: ${err.message}`);
+          await client.end();
+          reject(err);
+        });
+      });
+    } catch (error) {
+      this.logger.error(`Error crítico al conectar a Postgres: ${error.message}`);
+      throw error;
+    }
+  }
+
   async resetSyncFile() {
-    this.logger.warn('(!) TRUNCANDO ARCHIVO CQL: Borrando todos los registros anteriores para reinicio limpio.');
+    this.logger.warn(
+      '(!) TRUNCANDO ARCHIVO CQL: Borrando todos los registros anteriores para reinicio limpio.',
+    );
     if (this.writeStream) {
       this.writeStream.end();
     }
@@ -105,5 +191,3 @@ export class CustomersSyncService {
     this.initializeStream();
   }
 }
-
-
