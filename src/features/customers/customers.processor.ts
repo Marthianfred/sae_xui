@@ -43,8 +43,8 @@ export class CustomersProcessor extends WorkerHost {
     const result = await this.customersSync.syncMassive(apiConnect, 0, batchSize);
     
     if (result && result.totalPaginas > 0) {
-      // 1 minuto 30 segundos entre consultas = 90000 ms
-      const delayMs = 90000;
+      // 1 minuto entre consultas = 60000 ms
+      const delayMs = 60000;
       
       for (let i = 1; i <= result.totalPaginas; i++) {
         await this.syncQueue.add('sync-page', {
@@ -57,8 +57,9 @@ export class CustomersProcessor extends WorkerHost {
           priority: 1
         });
       }
-      this.logger.log(`Encoladas ${result.totalPaginas} páginas de 3000 registros cada una con delay de 90s.`);
+      this.logger.log(`Encoladas ${result.totalPaginas} páginas de 3000 registros cada una con delay de 60s.`);
     }
+
 
     return result;
   }
