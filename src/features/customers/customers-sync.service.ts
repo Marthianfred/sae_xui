@@ -8,13 +8,19 @@ import * as path from 'path';
 export class CustomersSyncService {
   private readonly logger = new Logger(CustomersSyncService.name);
   private readonly migrationFile = path.join(process.cwd(), 'migration_high_performance.cql');
+  private writeStream: fs.WriteStream | null = null;
 
   constructor(
     private readonly http: HttpService,
   ) {
+    this.initializeStream();
+  }
+
+  private initializeStream() {
     if (!fs.existsSync(this.migrationFile)) {
       fs.writeFileSync(this.migrationFile, 'USE sync_sae;\n\n');
     }
+    this.writeStream = fs.createWriteStream(this.migrationFile, { flags: 'a' });
   }
 
   async syncMassive(apiConnect: string, pagina = 0, nroRegistros = 2000) {
@@ -22,6 +28,7 @@ export class CustomersSyncService {
     
     try {
       this.logger.log(`Solicitando Página ${pagina} (${nroRegistros} registros) con Auth Completa...`);
+      const apiStartTime = Date.now();
       
       const response = await lastValueFrom(
         this.http.get(url, { 
@@ -36,17 +43,22 @@ export class CustomersSyncService {
         })
       );
 
-
+      const apiDuration = (Date.now() - apiStartTime) / 1000;
+      this.logger.debug(`API SAE respondió en ${apiDuration.toFixed(2)}s`);
 
       if (response.data?.message === 'Ok' || response.data?.data) {
         const customers = response.data.data;
-        let cqlBuffer = '';
+        const writeStartTime = Date.now();
         
         for (const customer of customers) {
-          cqlBuffer += this.generateInsertStatement(customer);
+          const statement = this.generateInsertStatement(customer);
+          if (this.writeStream) {
+            this.writeStream.write(statement);
+          }
         }
 
-        fs.appendFileSync(this.migrationFile, cqlBuffer);
+        const writeDuration = (Date.now() - writeStartTime) / 1000;
+        this.logger.debug(`Escritura en disco completada en ${writeDuration.toFixed(3)}s`);
         
         this.logger.log(`Página ${pagina} procesada exitosamente. Lote de ${customers.length} registros.`);
         
@@ -83,7 +95,11 @@ export class CustomersSyncService {
 
   async resetSyncFile() {
     this.logger.warn('(!) TRUNCANDO ARCHIVO CQL: Borrando todos los registros anteriores para reinicio limpio.');
+    if (this.writeStream) {
+      this.writeStream.end();
+    }
     fs.writeFileSync(this.migrationFile, 'USE sync_sae;\n\n');
+    this.initializeStream();
   }
 }
 

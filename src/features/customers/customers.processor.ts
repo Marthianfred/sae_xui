@@ -3,7 +3,7 @@ import { Job, Queue } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { CustomersSyncService } from './customers-sync.service';
 
-@Processor('customers-sync')
+@Processor('customers-sync', { concurrency: 3 })
 export class CustomersProcessor extends WorkerHost {
   private readonly logger = new Logger(CustomersProcessor.name);
 
@@ -38,19 +38,31 @@ export class CustomersProcessor extends WorkerHost {
   private async startMassiveSync(apiConnect: string, nro_registros: number) {
     this.logger.log(`Iniciando cadena de migración REACTIVA para ${apiConnect} (Lotes de 1000)`);
     
-    // Forzar 1000 por lote para mayor estabilidad y velocidad de respuesta API
-    const batchSize = 1000;
+    // Aumentamos a 2000 por lote para reducir el total de saltos de página (mejor performance con offsets)
+    const batchSize = 2000;
     const result = await this.customersSync.syncMassive(apiConnect, 0, batchSize);
     
     if (result && result.totalPaginas > 0) {
       this.logger.log(`Página 0 completada. Total páginas estimadas: ${result.totalPaginas}.`);
       
-      await this.syncQueue.add('sync-page', {
-        type: 'SYNC_PAGE',
-        apiConnect,
-        pagina: 1,
-        nro_registros: batchSize
-      }, { priority: 1 });
+      this.logger.log(`Encolando ${result.totalPaginas} páginas para procesamiento CONCURRENTE...`);
+      
+      const jobs = [];
+      for (let i = 1; i <= result.totalPaginas; i++) {
+        jobs.push({
+          name: 'sync-page',
+          data: {
+            type: 'SYNC_PAGE',
+            apiConnect,
+            pagina: i,
+            nro_registros: batchSize
+          },
+          opts: { priority: 1 }
+        });
+      }
+
+      await this.syncQueue.addBulk(jobs);
+      this.logger.log(`>>> Cadena masiva encolada exitosamente.`);
     }
 
     return result;
@@ -67,26 +79,7 @@ export class CustomersProcessor extends WorkerHost {
     if (result) {
       this.logger.log(`Archivo actualizado: Página ${pagina} inyectada en ${duration}s. [Lote: ${result.count}]`);
       
-      if (pagina < result.totalPaginas) {
-        const siguientePagina = pagina + 1;
-        
-        if (await this.syncQueue.isPaused()) {
-          this.logger.warn(`Sincronización PAUSADA. Deteniendo cadena en Página ${pagina}.`);
-          return result;
-        }
-
-        await this.syncQueue.add('sync-page', {
-          type: 'SYNC_PAGE',
-          apiConnect,
-          pagina: siguientePagina,
-          nro_registros,
-        }, { 
-          priority: 1,
-          delay: 5000 
-        });
-        
-        this.logger.log(`Siguiente página encolada: ${siguientePagina}`);
-      } else {
+      if (pagina >= result.totalPaginas) {
         this.logger.log('--- MIGRACIÓN COMPLETADA EXITOSAMENTE ---');
       }
     }
