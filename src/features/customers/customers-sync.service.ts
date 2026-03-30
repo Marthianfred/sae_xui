@@ -20,37 +20,58 @@ export class CustomersSyncService {
     if (this.isProcessing) throw new Error('Sincronización ya activa.');
     if (!fs.existsSync(this.CHUNKS_DIR)) throw new Error('Carpeta chunks no encontrada.');
     
-    const files = fs.readdirSync(this.CHUNKS_DIR).filter(f => f.endsWith('.cql')).sort();
+    const files = fs.readdirSync(this.CHUNKS_DIR)
+      .filter(f => f.endsWith('.cql'))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
     this.isProcessing = true;
     try {
       for (const file of files) {
         this.logger.log(`>> Procesando ARCHIVO: ${file} 🚀`);
         const content = fs.readFileSync(path.join(this.CHUNKS_DIR, file), 'utf8');
-        const batches = content.split('APPLY BATCH;');
+        
+        // Split por APPLY BATCH; tolerando variaciones de espacios/newlines
+        const batches = content.split(/APPLY\s+BATCH\s*;/gi);
         
         for (let i = 0; i < batches.length; i++) {
           let q = batches[i].trim();
           if (q.length < 10) continue;
 
-          // Limpiar comandos USE, comentarios y el punto y coma ilegal tras BEGIN BATCH
+          // Limpiar comandos USE y asegurar que la cabecera del BATCH sea válida para el driver
+          // El driver no permite ';' al final de 'BEGIN BATCH;' cuando se envía como string único
           q = q.replace(/USE\s+[^;]+;/gi, '')
-               .replace(/BEGIN\s+(UNLOGGED\s+)?BATCH\s*;/gi, 'BEGIN $1BATCH') // Quitar ; de la cabecera
+               .replace(/BEGIN\s+(UNLOGGED\s+)?BATCH\s*;/gi, 'BEGIN $1BATCH')
                .trim();
           
-          if (q.includes('BEGIN')) {
-            await this.scyllaService.execute(q + ' APPLY BATCH;');
-          } else {
-            // Asegurar que las sentencias individuales tengan su ; si no lo tienen
-            const finalQ = q.endsWith(';') ? q : q + ';';
-            await this.scyllaService.execute(finalQ);
+          try {
+            if (q.toUpperCase().includes('BEGIN')) {
+              // IMPORTANTE: prepare: false es CRÍTICO aquí. 
+              // Estas queries tienen valores embebidos y no deben ser preparadas por el driver.
+              await this.scyllaService.execute(q + ' APPLY BATCH;', [], { prepare: false });
+            } else {
+              const finalQ = q.endsWith(';') ? q : q + ';';
+              await this.scyllaService.execute(finalQ, [], { prepare: false });
+            }
+          } catch (batchErr) {
+            this.logger.error(`❌ Error en ARCHIVO ${file}, BLOQUE ${i}: ${batchErr.message}`);
+            // Logeamos los primeros 200 caracteres para identificar el registro fallido
+            this.logger.error(`   Snippet corrupto: ${q.substring(0, 200)}...`);
+            // Continuamos con el siguiente bloque en lugar de abortar toda la migración
+            continue;
           }
           
-          if (i % 25 === 0) this.logger.log(`   - Progreso en ${file}: ${i}/${batches.length} bloques inyectados... 📈`);
+          if (i % 50 === 0) {
+            this.logger.log(`   - Progreso en ${file}: ${i}/${batches.length} bloques inyectados... 📈`);
+          }
         }
         this.logger.log(`✅ ARCHIVO COMPLETADO: ${file}`);
       }
-    } finally { this.isProcessing = false; }
-    return { status: 'success', count: files.length, totalPaginas: 1 };
+    } catch (criticalErr) {
+      this.logger.error(`FATAL: Error crítico en secuencia de chunks: ${criticalErr.message}`);
+    } finally {
+      this.isProcessing = false;
+    }
+    return { status: 'completed', filesHandled: files.length };
   }
 
   /**
