@@ -80,4 +80,10 @@ export class CustomersSyncService {
     this.logger.warn('syncByCedula deshabilitado durante migración masiva.');
     return [];
   }
+
+  async resetSyncFile() {
+    this.logger.warn('Reiniciando archivo de migración CQL...');
+    fs.writeFileSync(this.migrationFile, 'USE sync_sae;\n\n');
+  }
 }
+

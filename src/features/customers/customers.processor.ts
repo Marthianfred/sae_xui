@@ -36,40 +36,53 @@ export class CustomersProcessor extends WorkerHost {
   }
 
   private async startMassiveSync(apiConnect: string, nro_registros: number) {
-    this.logger.log(`Iniciando sincronización masiva para ${apiConnect} con lotes de 3000`);
+    this.logger.log(`Iniciando cadena de migración REACTIVA para ${apiConnect}`);
     
-    // Forzar 3000 por lote para mayor eficiencia
+    // 1. Procesar Página 0 inmediatamente
     const batchSize = 3000;
     const result = await this.customersSync.syncMassive(apiConnect, 0, batchSize);
     
     if (result && result.totalPaginas > 0) {
-      // 1 minuto entre consultas = 60000 ms
-      const delayMs = 60000;
+      this.logger.log(`Página 0 completada. Disparando disparador para página 1.`);
       
-      for (let i = 1; i <= result.totalPaginas; i++) {
-        await this.syncQueue.add('sync-page', {
-          type: 'SYNC_PAGE',
-          apiConnect,
-          pagina: i,
-          nro_registros: batchSize
-        }, {
-          delay: i * delayMs,
-          priority: 1
-        });
-      }
-      this.logger.log(`Encoladas ${result.totalPaginas} páginas de 3000 registros cada una con delay de 60s.`);
+      // 2. Encolar SOLO la siguiente página (sin delay artificial largo)
+      await this.syncQueue.add('sync-page', {
+        type: 'SYNC_PAGE',
+        apiConnect,
+        pagina: 1,
+        nro_registros: batchSize
+      }, { priority: 1 });
     }
-
 
     return result;
   }
 
   private async syncPage(apiConnect: string, pagina: number, nro_registros: number) {
-    this.logger.log(`Sincronizando página ${pagina} de ${apiConnect}...`);
+    this.logger.log(`>>> PROCESANDO PÁGINA ${pagina} (Reactiva) de ${apiConnect}...`);
+    
     const result = await this.customersSync.syncMassive(apiConnect, pagina, nro_registros);
-    if (result) {
-      this.logger.log(`Página ${pagina} completada. Registros procesados: ${result.count}`);
+    
+    if (result && pagina < result.totalPaginas) {
+      const siguientePagina = pagina + 1;
+      
+      // AUTO-ENCADENAMIENTO: Encolar siguiente página con un delay de seguridad de 5s
+      // para evitar bloqueos por tasa de peticiones en SAE PLUS, pero manteniendo flujo continuo.
+      await this.syncQueue.add('sync-page', {
+        type: 'SYNC_PAGE',
+        apiConnect,
+        pagina: siguientePagina,
+        nro_registros,
+      }, { 
+        priority: 1,
+        delay: 5000 
+      });
+      
+      this.logger.log(`Página ${pagina} lista. Encolada siguiente: ${siguientePagina}`);
+    } else {
+      this.logger.log('--- MIGRACIÓN COMPLETADA EXITOSAMENTE ---');
     }
+
     return result;
   }
 }
+
