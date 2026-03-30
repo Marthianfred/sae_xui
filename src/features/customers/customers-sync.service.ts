@@ -32,13 +32,17 @@ export class CustomersSyncService {
           let q = batches[i].trim();
           if (q.length < 10) continue;
 
-          // Limpiar comandos USE y comentarios para evitar errores de sintaxis
-          q = q.replace(/USE\s+[^;]+;/gi, '').trim();
+          // Limpiar comandos USE, comentarios y el punto y coma ilegal tras BEGIN BATCH
+          q = q.replace(/USE\s+[^;]+;/gi, '')
+               .replace(/BEGIN\s+(UNLOGGED\s+)?BATCH\s*;/gi, 'BEGIN $1BATCH') // Quitar ; de la cabecera
+               .trim();
           
           if (q.includes('BEGIN')) {
             await this.scyllaService.execute(q + ' APPLY BATCH;');
           } else {
-            await this.scyllaService.execute(q);
+            // Asegurar que las sentencias individuales tengan su ; si no lo tienen
+            const finalQ = q.endsWith(';') ? q : q + ';';
+            await this.scyllaService.execute(finalQ);
           }
           
           if (i % 25 === 0) this.logger.log(`   - Progreso en ${file}: ${i}/${batches.length} bloques inyectados... 📈`);
