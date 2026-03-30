@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.log
+.env
+.agent/
+migration_high_performance.cql
