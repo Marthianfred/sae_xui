@@ -1,0 +1,26 @@
+services:
+  sync-app:
+    build: .
+    container_name: sync-app-711k
+    restart: always
+    ports:
+      - "3600:3600"
+    environment:
+      - REDIS_HOST=sync-redis
+      - REDIS_PORT=6379
+      - NODE_ENV=production
+    depends_on:
+      - sync-redis
+    volumes:
+      - ./migration_high_performance.cql:/app/migration_high_performance.cql
+
+  sync-redis:
+    image: redis:7-alpine
+    container_name: sync-redis-queue
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
+volumes:
+  migration_high_performance.cql:
