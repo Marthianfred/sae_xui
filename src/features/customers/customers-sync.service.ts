@@ -28,13 +28,14 @@ export class CustomersSyncService {
           headers: { 
             'Accept-Encoding': 'application/json', 
             'Accept': 'application/json', 
-            'Api-Token': 'k942ah77bkkjnazh585myf3c3hj2svzgf3nqpyqdvvd72uag5s7t78ka8687zkh8cq6kcggxe5rm3tse8e2pybjhvh4fdcre6fqnxj3ydhrhj6usj299ny72pyrpjx3k', 
-            'Api-Connect': 'conexven', 
-            'Authorization': 'Basic QVBJQ09ORVhQRTpBMTIzNDU2', 
-            'Cookie': 'XSRF-TOKEN=eyJpdiI6IlhVN090KzBmZkx5MTBSYzVIWVFFa1E9PSIsInZhbHVlIjoiYm4zTkpVQ3NqVkdrMmZFazhjcHlIalhWUkQ4SWhLUk9QYlpPWUJ5eDI1ZmROVWx2ZVZ5SzZXcmtQWHRJZ0U3WDYyUG5hQm50OEN4RUFwSzJndWtiYlE9PSIsIm1hYyI6IjQyNjExNDdiYjY4Mjc1OWIzNWY0NzE4MGI3ODJmZGQ1MGFlOTM1ZjE0ZDQ0NTU3MTI1NjU5YTg3ZjgwODY1ODUifQ%3D%3D; laravel_session=eyJpdiI6IkFWcDB5YzZFamh5XC9CUldaRTdNSTVRPT0iLCJ2YWx1ZSI6Imd0OURTMHVTT0pEaU5IRE5Dd1BmaHBhR0hCYVFjRFN5UG1WY24zXC90MmpLT2U0XC84Q0hDYXMzUzRmeXFROE5iZnk2RkJMaHVlT1poOHVQUlMwSEc2enc9PSIsIm1hYyI6ImJiZTllNWNmNDY5NWY5ZmQwZmMwNTU5OWY5NWE5NzMzMTVjMWIxZDZhYTRlZjNlYWNiMTEwZmMyNGM3YWIzNjkifQ%3D%3D'
+            'Api-Token': process.env.SAE_API_TOKEN, 
+            'Api-Connect': process.env.SAE_CONNECT || apiConnect, 
+            'Authorization': process.env.SAE_AUTH, 
+            'Cookie': process.env.SAE_COOKIE
           } 
         })
       );
+
 
       if (response.data?.message === 'Ok' || response.data?.data) {
         const customers = response.data.data;
