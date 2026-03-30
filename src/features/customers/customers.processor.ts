@@ -36,16 +36,15 @@ export class CustomersProcessor extends WorkerHost {
   }
 
   private async startMassiveSync(apiConnect: string, nro_registros: number) {
-    this.logger.log(`Iniciando cadena de migración REACTIVA para ${apiConnect}`);
+    this.logger.log(`Iniciando cadena de migración REACTIVA para ${apiConnect} (Lotes de 1000)`);
     
-    // 1. Procesar Página 0 inmediatamente
-    const batchSize = 3000;
+    // Forzar 1000 por lote para mayor estabilidad y velocidad de respuesta API
+    const batchSize = 1000;
     const result = await this.customersSync.syncMassive(apiConnect, 0, batchSize);
     
     if (result && result.totalPaginas > 0) {
-      this.logger.log(`Página 0 completada. Disparando disparador para página 1.`);
+      this.logger.log(`Página 0 completada. Total páginas estimadas: ${result.totalPaginas}.`);
       
-      // 2. Encolar SOLO la siguiente página (sin delay artificial largo)
       await this.syncQueue.add('sync-page', {
         type: 'SYNC_PAGE',
         apiConnect,
@@ -58,37 +57,42 @@ export class CustomersProcessor extends WorkerHost {
   }
 
   private async syncPage(apiConnect: string, pagina: number, nro_registros: number) {
-    this.logger.log(`>>> PROCESANDO PÁGINA ${pagina} (Reactiva) de ${apiConnect}...`);
+    this.logger.log(`>>> PROCESANDO PÁGINA ${pagina}...`);
+    const startTime = Date.now();
     
     const result = await this.customersSync.syncMassive(apiConnect, pagina, nro_registros);
     
-    if (result && pagina < result.totalPaginas) {
-      const siguientePagina = pagina + 1;
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    
+    if (result) {
+      this.logger.log(`Archivo actualizado: Página ${pagina} inyectada en ${duration}s. [Lote: ${result.count}]`);
       
-      // VERIFICACIÓN DE PAUSA: No encolar la siguiente si el usuario pausó
-      if (await this.syncQueue.isPaused()) {
-        this.logger.warn(`Sincronización PAUSADA detectada. Deteniendo cadena reactiva en Página ${pagina}.`);
-        return result;
+      if (pagina < result.totalPaginas) {
+        const siguientePagina = pagina + 1;
+        
+        if (await this.syncQueue.isPaused()) {
+          this.logger.warn(`Sincronización PAUSADA. Deteniendo cadena en Página ${pagina}.`);
+          return result;
+        }
+
+        await this.syncQueue.add('sync-page', {
+          type: 'SYNC_PAGE',
+          apiConnect,
+          pagina: siguientePagina,
+          nro_registros,
+        }, { 
+          priority: 1,
+          delay: 5000 
+        });
+        
+        this.logger.log(`Siguiente página encolada: ${siguientePagina}`);
+      } else {
+        this.logger.log('--- MIGRACIÓN COMPLETADA EXITOSAMENTE ---');
       }
-
-      // AUTO-ENCADENAMIENTO (Solo si no hay pausa)
-      await this.syncQueue.add('sync-page', {
-        type: 'SYNC_PAGE',
-        apiConnect,
-        pagina: siguientePagina,
-        nro_registros,
-      }, { 
-        priority: 1,
-        delay: 5000 
-      });
-      
-      this.logger.log(`Página ${pagina} lista. Encolada siguiente: ${siguientePagina}`);
-    } else {
-      this.logger.log('--- MIGRACIÓN COMPLETADA EXITOSAMENTE ---');
     }
-
 
     return result;
   }
 }
+
 

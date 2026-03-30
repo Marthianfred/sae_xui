@@ -82,8 +82,9 @@ export class CustomersSyncService {
   }
 
   async resetSyncFile() {
-    this.logger.warn('Reiniciando archivo de migración CQL...');
+    this.logger.warn('(!) TRUNCANDO ARCHIVO CQL: Borrando todos los registros anteriores para reinicio limpio.');
     fs.writeFileSync(this.migrationFile, 'USE sync_sae;\n\n');
   }
 }
+
 
