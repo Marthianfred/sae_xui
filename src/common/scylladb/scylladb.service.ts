@@ -1,5 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Client, auth, types, policies } from 'cassandra-driver';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ScyllaService implements OnModuleInit, OnModuleDestroy {
@@ -48,7 +50,25 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       );
       await this.client.execute("USE sync_sae");
       
-      this.logger.log('ScyllaDB Service: ¡CONEXIÓN ESTABLECIDA CON ÉXITO! ✅🎯');
+      // Auto-Table/Schema Initialization
+      const schemaPath = path.join(__dirname, 'schema', 'customers.cql');
+      if (fs.existsSync(schemaPath)) {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        const statements = schema
+          .split(';')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        
+        for (const statement of statements) {
+          try {
+            await this.client.execute(statement);
+          } catch (err) {
+            this.logger.error(`ScyllaDB: Error ejecutando schema: ${err.message}`);
+          }
+        }
+      }
+      
+      this.logger.log('ScyllaDB Service: ¡CONEXIÓN Y SCHEMA ESTABLECIDOS CON ÉXITO! ✅🎯');
     } catch (error) {
       this.logger.error(`ScyllaDB: Fallo en el Handshake inicial: ${error.message}`);
     }
