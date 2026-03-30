@@ -28,13 +28,14 @@ export class CustomersSyncService {
           headers: { 
             'Accept-Encoding': 'application/json', 
             'Accept': 'application/json', 
-            'Api-Token': process.env.SAE_API_TOKEN, 
+            'Api-Token': process.env.SAE_TOKEN, 
             'Api-Connect': process.env.SAE_CONNECT || apiConnect, 
             'Authorization': process.env.SAE_AUTH, 
             'Cookie': process.env.SAE_COOKIE
           } 
         })
       );
+
 
 
       if (response.data?.message === 'Ok' || response.data?.data) {
