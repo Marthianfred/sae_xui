@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Query, Headers, Body } from '@nestjs/common';
+import { Controller, Get, Post, Query, Headers, Body, StreamableFile, Response } from '@nestjs/common';
+import { createReadStream } from 'fs';
+import { join } from 'path';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { CustomersQueryService } from './query/customers-query.service';
@@ -56,4 +58,18 @@ export class CustomersController {
     await this.syncQueue.resume();
     return { success: true, message: 'Sincronización reanudada exitosamente.' };
   }
+
+  @Get('sync/download')
+  downloadMigrationFile(@Response({ passthrough: true }) res): StreamableFile {
+    const filePath = join(process.cwd(), 'migration_high_performance.cql');
+    const file = createReadStream(filePath);
+    
+    res.set({
+      'Content-Type': 'text/plain',
+      'Content-Disposition': 'attachment; filename="migration_711k.cql"',
+    });
+    
+    return new StreamableFile(file);
+  }
 }
+
