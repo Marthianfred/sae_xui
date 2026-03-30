@@ -60,7 +60,7 @@ export class CustomersController {
   }
 
   @Get('sync/download')
-  downloadMigrationFile(@Response({ passthrough: true }) res): StreamableFile {
+  downloadMigrationFile(@Response({ passthrough: true }) res: any): StreamableFile {
     const filePath = join(process.cwd(), 'migration_high_performance.cql');
     const file = createReadStream(filePath);
     
