@@ -55,7 +55,7 @@ export class CustomersProcessor extends WorkerHost {
     this.logger.log(`>>> PROCESANDO PÁGINA ${pagina}${rangeLog}...`);
     const startTime = Date.now();
     
-    const result = await this.customersSync.syncMassive(apiConnect, pagina, nro_registros, desde, hasta);
+    const result = await this.customersSync.syncMassive(apiConnect, pagina, nro_registros, desde || '', hasta || '');
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     
