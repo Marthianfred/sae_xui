@@ -7,6 +7,8 @@ import { SyncOutboxService } from './features/sync-outbox/sync-outbox.service';
 import { CustomersModule } from './features/customers/customers.module';
 import { DocumentsModule } from './features/documents/documents.module';
 
+import { ScyllaModule } from './common/scylladb/scylladb.module';
+
 @Module({
   imports: [
     EventEmitterModule.forRoot({
@@ -24,10 +26,11 @@ import { DocumentsModule } from './features/documents/documents.module';
         transport: { target: 'pino-pretty' },
       },
     }),
+    ScyllaModule,
     CustomersModule,
     DocumentsModule,
   ],
-  providers: [ScyllaService, SyncOutboxService],
-  exports: [ScyllaService],
+  providers: [SyncOutboxService],
+  exports: [ScyllaModule],
 })
 export class AppModule {}

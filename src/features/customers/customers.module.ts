@@ -10,7 +10,7 @@ import { ScyllaModule } from '../../common/scylladb/scylladb.module';
 @Module({
   imports: [
     HttpModule,
-    // ScyllaModule temporalmente deshabilitado
+    ScyllaModule,
     BullModule.registerQueue({
       name: 'customers-sync',
       defaultJobOptions: {
