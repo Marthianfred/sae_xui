@@ -11,42 +11,30 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   private initializeClient() {
-    // Orden de búsqueda: Variable -> Host Interno Dokploy -> Localhost (Túnel)
-    const host = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || 'scylladb'; // Fallback PRO a scylladb
+    const host = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || 'scylladb';
     const port = Number(process.env.SCYLLA_PORT) || 9042;
     const datacenter = process.env.SCYLLA_DATACENTER || 'datacenter1';
-    const keyspace = 'sync_sae';
+    
+    // NOTA: Eliminamos keyspace de la conexión inicial para evitar errores si no existe
     const user = 'cassandra';
     const pass = 'cassandra';
-
-    const contactPoint = `${host}:${port}`;
 
     this.client = new Client({
       contactPoints: [host],
       localDataCenter: datacenter,
-      keyspace: keyspace,
       queryOptions: { 
         consistency: types.consistencies.one,
         prepare: true 
       },
       authProvider: new auth.PlainTextAuthProvider(user, pass),
       protocolOptions: { port: port },
-      policies: {
-        loadBalancing: new policies.loadBalancing.AllowListPolicy(
-          new policies.loadBalancing.DCAwareRoundRobinPolicy(datacenter),
-          [contactPoint]
-        )
-      },
-      pooling: {
-        coreConnectionsPerHost: {
-          [types.distance.local]: 1,
-          [types.distance.remote]: 0
-        }
-      },
       socketOptions: {
-        connectTimeout: 30000,
-        readTimeout: 30000,
+        connectTimeout: 60000, // Aumentamos a 60s por el warm-up de Scylla
+        readTimeout: 60000,
         keepAlive: true
+      },
+      policies: {
+        loadBalancing: new policies.loadBalancing.DCAwareRoundRobinPolicy(datacenter)
       }
     });
   }
@@ -54,42 +42,36 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       const targetHost = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || 'scylladb';
-      
-      this.logger.log(`Iniciando conexión con ScyllaDB en HOST: ${targetHost}...`);
+      this.logger.log(`Conectando a raíz de ScyllaDB en HOST: ${targetHost}...`);
       await this.client.connect();
-      this.logger.log('ScyllaDB Service: ¡CONEXIÓN TOTAL ESTABLECIDA! ✅🎯');
+      this.logger.log('ScyllaDB Service: ¡CONEXIÓN ESTABLECIDA! ✅🎯');
+      
+      // Intentar crear el keyspace si no existe
+      await this.client.execute(
+        "CREATE KEYSPACE IF NOT EXISTS sync_sae WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}"
+      );
+      this.logger.log('ScyllaDB Service: Keyspace sync_sae verificado/creado. ✨');
+      
+      // Ahora sí nos movemos al keyspace
+      await this.client.execute("USE sync_sae");
+      
     } catch (error) {
       this.logger.error('ScyllaDB Service: Error al conectar:', error.message);
-      
-      // ÚLTIMO RECURSO: Intentar con 127.0.0.1 (Túnel) si scylladb falló
-      if (process.env.SCYLLA_HOST === undefined) {
-         this.logger.warn('Reintentando con 127.0.0.1 (FALLBACK TÚNEL)...');
-         // ... (Aquí podríamos re-inicializar el cliente pero esperamos al deploy)
-      }
     }
   }
 
   async onModuleDestroy() {
     if (this.client) {
       await this.client.shutdown();
-      this.logger.log('ScyllaDB Service finalizado.');
     }
   }
 
   async execute(query: string, params: any[] = [], options: any = {}) {
     try {
+      // Si la query no especifica keyspace, usamos el nuestro
       return await this.client.execute(query, params, { prepare: true, ...options });
     } catch (error) {
-      this.logger.error(`ScyllaDB Error al ejecutar Query: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async batch(queries: { query: string; params?: any[] }[], options: any = {}) {
-    try {
-      return await this.client.batch(queries, { prepare: true, ...options });
-    } catch (error) {
-      this.logger.error(`ScyllaDB Error al ejecutar Batch: ${error.message}`);
+      this.logger.error(`ScyllaDB Error: ${error.message}`);
       throw error;
     }
   }
