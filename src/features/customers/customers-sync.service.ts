@@ -24,12 +24,26 @@ export class CustomersSyncService {
     this.isProcessing = true;
     try {
       for (const file of files) {
+        this.logger.log(`>> Procesando ARCHIVO: ${file} 🚀`);
         const content = fs.readFileSync(path.join(this.CHUNKS_DIR, file), 'utf8');
         const batches = content.split('APPLY BATCH;');
-        for (const batch of batches) {
-          const q = batch.trim();
-          if (q.length > 10) await this.scyllaService.execute(q.includes('BEGIN') ? q + ' APPLY BATCH;' : q);
+        
+        for (let i = 0; i < batches.length; i++) {
+          let q = batches[i].trim();
+          if (q.length < 10) continue;
+
+          // Limpiar comandos USE y comentarios para evitar errores de sintaxis
+          q = q.replace(/USE\s+[^;]+;/gi, '').trim();
+          
+          if (q.includes('BEGIN')) {
+            await this.scyllaService.execute(q + ' APPLY BATCH;');
+          } else {
+            await this.scyllaService.execute(q);
+          }
+          
+          if (i % 25 === 0) this.logger.log(`   - Progreso en ${file}: ${i}/${batches.length} bloques inyectados... 📈`);
         }
+        this.logger.log(`✅ ARCHIVO COMPLETADO: ${file}`);
       }
     } finally { this.isProcessing = false; }
     return { status: 'success', count: files.length, totalPaginas: 1 };
