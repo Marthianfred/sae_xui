@@ -89,6 +89,12 @@ export class CustomersProcessor extends WorkerHost {
     if (result) {
       this.logger.log(`Inyectado: Página ${pagina}${rangeLog} en ${duration}s. [Items: ${result.count}]`);
       
+      // SHORT-CIRCUIT: Si la página 0 no tiene items, no hay nada que buscar en este mes.
+      if (pagina === 0 && result.count === 0) {
+        this.logger.log(`Ventana ${rangeLog} vacía. Saltando al siguiente mes.`);
+        return result;
+      }
+
       if (pagina < result.totalPaginas) {
         const siguientePagina = pagina + 1;
         

@@ -66,9 +66,9 @@ export class CustomersSyncService {
         this.logger.log(`Página ${pagina} procesada exitosamente. Lote de ${customers.length} registros.`);
         
         return {
-          totalItems: response.data.TotalItems || 711523,
-          totalPaginas: response.data.totalPaginas || 711,
-          paginaActual: response.data.paginaActual || pagina,
+          totalItems: response.data.TotalItems ?? 0,
+          totalPaginas: response.data.totalPaginas ?? 0,
+          paginaActual: response.data.paginaActual ?? pagina,
           count: customers.length
         };
       }
