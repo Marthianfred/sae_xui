@@ -65,8 +65,13 @@ export class CustomersProcessor extends WorkerHost {
     if (result && pagina < result.totalPaginas) {
       const siguientePagina = pagina + 1;
       
-      // AUTO-ENCADENAMIENTO: Encolar siguiente página con un delay de seguridad de 5s
-      // para evitar bloqueos por tasa de peticiones en SAE PLUS, pero manteniendo flujo continuo.
+      // VERIFICACIÓN DE PAUSA: No encolar la siguiente si el usuario pausó
+      if (await this.syncQueue.isPaused()) {
+        this.logger.warn(`Sincronización PAUSADA detectada. Deteniendo cadena reactiva en Página ${pagina}.`);
+        return result;
+      }
+
+      // AUTO-ENCADENAMIENTO (Solo si no hay pausa)
       await this.syncQueue.add('sync-page', {
         type: 'SYNC_PAGE',
         apiConnect,
@@ -81,6 +86,7 @@ export class CustomersProcessor extends WorkerHost {
     } else {
       this.logger.log('--- MIGRACIÓN COMPLETADA EXITOSAMENTE ---');
     }
+
 
     return result;
   }
