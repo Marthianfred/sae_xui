@@ -9,6 +9,10 @@ services:
       - REDIS_HOST=sync-redis
       - REDIS_PORT=6379
       - NODE_ENV=production
+      - SAE_TOKEN=${SAE_TOKEN}
+      - SAE_CONNECT=${SAE_CONNECT}
+      - SAE_AUTH=${SAE_AUTH}
+      - SAE_COOKIE=${SAE_COOKIE}
     depends_on:
       - sync-redis
 
