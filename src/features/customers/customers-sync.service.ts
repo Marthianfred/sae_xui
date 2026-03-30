@@ -23,8 +23,11 @@ export class CustomersSyncService {
     this.writeStream = fs.createWriteStream(this.migrationFile, { flags: 'a' });
   }
 
-  async syncMassive(apiConnect: string, pagina = 0, nroRegistros = 2000) {
-    const url = `https://api.saeplus.com/public/resources/contratos/ListadoAbonados?pagina=${pagina}&nro_registros=${nroRegistros}`;
+  async syncMassive(apiConnect: string, pagina = 0, nroRegistros = 2000, desde?: string, hasta?: string) {
+    let url = `https://api.saeplus.com/public/resources/contratos/ListadoAbonados?pagina=${pagina}&nro_registros=${nroRegistros}`;
+    
+    if (desde) url += `&desde=${desde}`;
+    if (hasta) url += `&hasta=${hasta}`;
     
     try {
       this.logger.log(`Solicitando Página ${pagina} (${nroRegistros} registros) con Auth Completa...`);
