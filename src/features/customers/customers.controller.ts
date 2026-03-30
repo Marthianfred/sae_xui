@@ -35,6 +35,7 @@ export class CustomersController {
     @Headers('api-connect') apiConnect: string,
     @Body() body: { nro_registros?: number }
   ) {
+    console.log('>>> HTTP: Recibida petición en /sync/massive');
     await this.syncQueue.add('start-massive-sync', {
       type: 'START_MASSIVE_SYNC',
       apiConnect,

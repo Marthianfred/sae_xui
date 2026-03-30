@@ -45,7 +45,7 @@ export class CustomersProcessor extends WorkerHost {
       this.logger.log(`>> Proceso finalizado. Se han migrado ${total} registros.`);
       return { status: 'COMPLETED', total };
     } catch (error) {
-      this.logger.error(`Fallo en el motor de streaming: ${error.message}`);
+      this.logger.error('Fallo en el motor de streaming:', error);
       throw error;
     }
   }
