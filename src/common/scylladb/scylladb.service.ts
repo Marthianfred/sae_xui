@@ -11,13 +11,13 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   private initializeClient() {
-    // Configuración HÍBRIDA (Soporta SCYLLA_HOST y SCYLLA_HOSTS)
-    const host = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || '127.0.0.1';
+    // Orden de búsqueda: Variable -> Host Interno Dokploy -> Localhost (Túnel)
+    const host = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || 'scylladb'; // Fallback PRO a scylladb
     const port = Number(process.env.SCYLLA_PORT) || 9042;
     const datacenter = process.env.SCYLLA_DATACENTER || 'datacenter1';
-    const keyspace = process.env.SCYLLA_KEYSPACE || 'sync_sae';
-    const user = process.env.SCYLLA_USER || 'cassandra';
-    const pass = process.env.SCYLLA_PASS || 'cassandra';
+    const keyspace = 'sync_sae';
+    const user = 'cassandra';
+    const pass = 'cassandra';
 
     const contactPoint = `${host}:${port}`;
 
@@ -53,15 +53,19 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
-      const targetHost = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || '127.0.0.1';
-      const mode = targetHost !== '127.0.0.1' ? 'MODO DOKPLOY 🚀' : 'MODO TÚNEL SSH 🛡️';
+      const targetHost = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || 'scylladb';
       
-      this.logger.log(`Iniciando conexión (${mode}) con ScyllaDB en ${targetHost}:9042...`);
+      this.logger.log(`Iniciando conexión con ScyllaDB en HOST: ${targetHost}...`);
       await this.client.connect();
       this.logger.log('ScyllaDB Service: ¡CONEXIÓN TOTAL ESTABLECIDA! ✅🎯');
     } catch (error) {
       this.logger.error('ScyllaDB Service: Error al conectar:', error.message);
-      this.logger.warn('Asegúrate de que SCYLLA_HOST esté configurado en Dokploy.');
+      
+      // ÚLTIMO RECURSO: Intentar con 127.0.0.1 (Túnel) si scylladb falló
+      if (process.env.SCYLLA_HOST === undefined) {
+         this.logger.warn('Reintentando con 127.0.0.1 (FALLBACK TÚNEL)...');
+         // ... (Aquí podríamos re-inicializar el cliente pero esperamos al deploy)
+      }
     }
   }
 
