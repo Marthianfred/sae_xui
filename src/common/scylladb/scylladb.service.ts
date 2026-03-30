@@ -11,8 +11,8 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   private initializeClient() {
-    // Configuración HÍBRIDA (Producción / Local)
-    const host = process.env.SCYLLA_HOST || '127.0.0.1'; // Si hay ENV (Dokploy) usa scylladb, sino usa Tunnel
+    // Configuración HÍBRIDA (Soporta SCYLLA_HOST y SCYLLA_HOSTS)
+    const host = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || '127.0.0.1';
     const port = Number(process.env.SCYLLA_PORT) || 9042;
     const datacenter = process.env.SCYLLA_DATACENTER || 'datacenter1';
     const keyspace = process.env.SCYLLA_KEYSPACE || 'sync_sae';
@@ -31,7 +31,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       },
       authProvider: new auth.PlainTextAuthProvider(user, pass),
       protocolOptions: { port: port },
-      // Estrategia de Balanceo Inteligente
       policies: {
         loadBalancing: new policies.loadBalancing.AllowListPolicy(
           new policies.loadBalancing.DCAwareRoundRobinPolicy(datacenter),
@@ -54,13 +53,15 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
-      const mode = process.env.SCYLLA_HOST ? 'MODO DOKPLOY 🚀' : 'MODO TÚNEL SSH 🛡️';
-      this.logger.log(`Iniciando conexión (${mode}) con ScyllaDB en ${process.env.SCYLLA_HOST || '127.0.0.1'}:9042...`);
+      const targetHost = process.env.SCYLLA_HOST || process.env.SCYLLA_HOSTS || '127.0.0.1';
+      const mode = targetHost !== '127.0.0.1' ? 'MODO DOKPLOY 🚀' : 'MODO TÚNEL SSH 🛡️';
+      
+      this.logger.log(`Iniciando conexión (${mode}) con ScyllaDB en ${targetHost}:9042...`);
       await this.client.connect();
       this.logger.log('ScyllaDB Service: ¡CONEXIÓN TOTAL ESTABLECIDA! ✅🎯');
     } catch (error) {
       this.logger.error('ScyllaDB Service: Error al conectar:', error.message);
-      this.logger.warn('Revisa el Host en el .env o tu túnel SSH.');
+      this.logger.warn('Asegúrate de que SCYLLA_HOST esté configurado en Dokploy.');
     }
   }
 
