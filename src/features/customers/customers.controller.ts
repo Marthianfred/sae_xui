@@ -74,24 +74,20 @@ export class CustomersController {
 
   @Post('sync/reset')
   async resetSync() {
-    // 1. Pausar y Limpiar Cola
+    // ELIMINACIÓN AGRESIVA Y TOTAL DE LA COLA EN REDIS
+    // Esto borra TODO: jobs activos, pendientes, metadatos y contadores.
     await this.syncQueue.pause();
-    await this.syncQueue.drain(true);
-    await this.syncQueue.clean(0, 1000, 'completed');
-    await this.syncQueue.clean(0, 1000, 'failed');
-    await this.syncQueue.clean(0, 1000, 'delayed');
+    await this.syncQueue.obliterate({ force: true });
     
     // 2. Limpiar archivo físico
     await this.syncService.resetSyncFile();
     
-    // 3. Reanudar
-    await this.syncQueue.resume();
-    
     return { 
       success: true, 
-      message: 'Sistema reiniciado: Cola vacía y archivo CQL en blanco.' 
+      message: 'OBLITERADO: Redis vacío y archivo CQL en blanco.' 
     };
   }
 }
+
 
 
