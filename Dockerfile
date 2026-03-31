@@ -25,5 +25,5 @@ COPY --from=builder /app/migration_timeline ./migration_timeline
 
 EXPOSE 3600
 
-# Punto de entrada explícito para evitar fallos de resolución
-CMD ["node", "dist/main.js"]
+# Punto de entrada explícito (NestJS no aplanado detected)
+CMD ["node", "dist/src/main.js"]
