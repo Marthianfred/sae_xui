@@ -28,8 +28,8 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       authProvider: new auth.PlainTextAuthProvider(user, pass),
       protocolOptions: { port: port },
       socketOptions: {
-        connectTimeout: 45000,
-        readTimeout: 45000,
+        connectTimeout: 5000,
+        readTimeout: 5000,
         keepAlive: true
       },
       policies: {
@@ -39,6 +39,8 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
+    this.logger.warn('ScyllaDB: Conexión desactivada temporalmente para pruebas.');
+    /*
     try {
       const host = process.env.SCYLLA_HOST || 'scylladb';
       this.logger.log(`Iniciando conexión con ScyllaDB Cluster en [${host}]...`);
@@ -51,19 +53,23 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       await this.client.execute("USE sync_sae");
       
       // Auto-Table/Schema Initialization
-      const schemaPath = path.join(__dirname, 'schema', 'customers.cql');
-      if (fs.existsSync(schemaPath)) {
-        const schema = fs.readFileSync(schemaPath, 'utf8');
-        const statements = schema
-          .split(';')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
-        
-        for (const statement of statements) {
-          try {
-            await this.client.execute(statement);
-          } catch (err) {
-            this.logger.error(`ScyllaDB: Error ejecutando schema: ${err.message}`);
+      const schemaDir = path.join(__dirname, 'schema');
+      if (fs.existsSync(schemaDir)) {
+        const schemaFiles = fs.readdirSync(schemaDir).filter(f => f.endsWith('.cql'));
+        for (const file of schemaFiles) {
+          this.logger.log(`>> Cargando SCHEMA Scylla: ${file}`);
+          const schema = fs.readFileSync(path.join(schemaDir, file), 'utf8');
+          const statements = schema
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+          
+          for (const statement of statements) {
+            try {
+              await this.client.execute(statement);
+            } catch (err) {
+              this.logger.error(`ScyllaDB: Error en ${file}: ${err.message}`);
+            }
           }
         }
       }
@@ -72,6 +78,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error(`ScyllaDB: Fallo en el Handshake inicial: ${error.message}`);
     }
+    */
   }
 
   async onModuleDestroy() {
