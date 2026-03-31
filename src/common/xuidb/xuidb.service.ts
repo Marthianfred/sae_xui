@@ -25,7 +25,8 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
       await this.pool.query('SELECT 1');
       this.logger.log('Conexión a base de datos XUI MySQL exitosa');
     } catch (error) {
-      this.logger.error('Error al conectar con la base de datos XUI:', error.message);
+      this.logger.error(`Error al conectar con la base de datos XUI: ${error.message}`);
+      this.logger.error(`Configuración Host: ${this.configService.get('XUI_DB_HOST') || 'NO DEFINIDO'}`);
     }
   }
 
