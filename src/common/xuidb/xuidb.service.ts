@@ -11,11 +11,11 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.pool = mysql.createPool({
-      host: this.configService.get<string>('XUI_DB_HOST'),
-      port: this.configService.get<number>('XUI_DB_PORT') || 3306,
-      user: this.configService.get<string>('XUI_DB_USER'),
-      password: this.configService.get<string>('XUI_DB_PASS'),
-      database: this.configService.get<string>('XUI_DB_NAME'),
+      host: process.env.XUI_DB_HOST || this.configService.get<string>('XUI_DB_HOST'),
+      port: Number(process.env.XUI_DB_PORT || this.configService.get<number>('XUI_DB_PORT') || 3306),
+      user: process.env.XUI_DB_USER || this.configService.get<string>('XUI_DB_USER'),
+      password: process.env.XUI_DB_PASS || this.configService.get<string>('XUI_DB_PASS'),
+      database: process.env.XUI_DB_NAME || this.configService.get<string>('XUI_DB_NAME'),
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
