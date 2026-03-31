@@ -16,8 +16,7 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
       user: process.env.XUI_DB_USER || this.configService.get<string>('XUI_DB_USER'),
       password: process.env.XUI_DB_PASS || this.configService.get<string>('XUI_DB_PASS'),
       database: process.env.XUI_DB_NAME || this.configService.get<string>('XUI_DB_NAME'),
-      waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 50,
       queueLimit: 0,
     });
 

@@ -74,6 +74,8 @@ export class XuiClientsService {
       const fields = ['id_contrato', 'nro_contrato', 'contrato_fisico', 'cedula', 'nombre', 'apellido', 'cliente', 'fecha_contrato', 'nombrestatus', 'saldo', 'suscripcion', 'monto_susc_int', 'monto_susc_tv', 'fecha_nacimiento', 'telefono', 'telf_casa', 'telf_adic', 'email', 'direccion_fiscal', 'nombre_g_a', 'nombre_estrato', 'etiqueta', 'id_franq', 'nombre_franq', 'tipo_fact', 'tipo_cliente', 'p_iva', 'det_tipo_servicio', 'det_suscripcion'];
 
       let currentStatement = '';
+      const batch: any[] = [];
+      const BATCH_SIZE = 50;
 
       for await (const line of rl) {
         currentStatement += line + ' ';
@@ -106,33 +108,53 @@ export class XuiClientsService {
 
           const saeCustomer: any = {};
           fields.forEach((f, i) => { saeCustomer[f] = values[i] || ''; });
+          batch.push(saeCustomer);
 
-          const xuiData = this.xuiMapper.toXuiClient(saeCustomer);
-          
-          if (!xuiData) {
-            this.migrationStatus.skippedWave++;
-            this.migrationStatus.processed++;
-            continue;
-          }
+          // CUANDO EL BATCH ESTÁ LLENO, PROCESAR TODO EN PARALELO
+          if (batch.length >= BATCH_SIZE) {
+            await Promise.all(batch.map(async (customer) => {
+               const xuiData = this.xuiMapper.toXuiClient(customer);
+               if (!xuiData) {
+                 this.migrationStatus.skippedWave++;
+                 this.migrationStatus.processed++;
+                 return;
+               }
 
-          try {
-             const result = await this.upsertLine(xuiData);
-             
-             if (result.id) {
-                await this.setLineStatus(result.id, saeCustomer.nombrestatus === 'ACTIVO');
-             }
+               try {
+                  const result = await this.upsertLine(xuiData);
+                  if (result.id) {
+                     await this.setLineStatus(result.id, customer.nombrestatus === 'ACTIVO');
+                  }
 
-             const timestamp = new Date().toISOString();
-             reportStream.write(`${saeCustomer.cedula},${saeCustomer.nro_contrato},${result.action},${saeCustomer.nombrestatus},"${saeCustomer.det_suscripcion}",${timestamp}\n`);
+                  const timestamp = new Date().toISOString();
+                  reportStream.write(`${customer.cedula},${customer.nro_contrato},${result.action},${customer.nombrestatus},"${customer.det_suscripcion}",${timestamp}\n`);
 
-             if (result.action === 'CREATED') this.migrationStatus.created++;
-             else this.migrationStatus.updated++;
-             
-             this.migrationStatus.processed++;
-          } catch (e) {
-             this.logger.warn(`Error sync cedula ${saeCustomer.cedula}: ${e.message}`);
+                  if (result.action === 'CREATED') this.migrationStatus.created++;
+                  else this.migrationStatus.updated++;
+                  
+                  this.migrationStatus.processed++;
+               } catch (e) {
+                  this.logger.warn(`Error sync cedula ${customer.cedula}: ${e.message}`);
+               }
+            }));
+            batch.length = 0; // Limpiar batch
           }
         }
+      }
+      
+      // PROCESAR ÚLTIMOS REGISTROS RESTANTES
+      if (batch.length > 0) {
+        await Promise.all(batch.map(async (customer) => {
+           const xuiData = this.xuiMapper.toXuiClient(customer);
+           if (!xuiData) return;
+           try {
+              const result = await this.upsertLine(xuiData);
+              if (result.id) await this.setLineStatus(result.id, customer.nombrestatus === 'ACTIVO');
+              this.migrationStatus.processed++;
+              if (result.action === 'CREATED') this.migrationStatus.created++;
+              else this.migrationStatus.updated++;
+           } catch (e) {}
+        }));
       }
     }
     reportStream.end();
