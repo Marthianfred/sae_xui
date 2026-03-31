@@ -26,6 +26,12 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('Conexión a base de datos XUI MySQL exitosa');
     } catch (error) {
       this.logger.error(`Error al conectar con la base de datos XUI: ${error.message}`);
+      
+      const allXuiEnv = Object.keys(process.env)
+        .filter(k => k.startsWith('XUI'))
+        .map(k => `${k}=${process.env[k] ? '***' : 'EMPTY'}`);
+      
+      this.logger.error(`VARIABLES XUI ENCONTRADAS: ${allXuiEnv.join(', ') || 'NINGUNA'}`);
       this.logger.error(`DOKPLOY_ENV_DEBUG: ${process.env.XUI_DB_HOST || 'EMPTY'} | Code: ${this.configService.get('XUI_DB_HOST') || 'EMPTY'}`);
     }
   }
