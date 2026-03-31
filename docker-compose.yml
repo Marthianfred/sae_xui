@@ -13,6 +13,13 @@ services:
       - SAE_CONNECT=${SAE_CONNECT}
       - SAE_AUTH=${SAE_AUTH}
       - SAE_COOKIE=${SAE_COOKIE}
+      - XUI_DB_HOST=${XUI_DB_HOST}
+      - XUI_DB_PORT=${XUI_DB_PORT}
+      - XUI_DB_USER=${XUI_DB_USER}
+      - XUI_DB_PASS=${XUI_DB_PASS}
+      - XUI_DB_NAME=${XUI_DB_NAME}
+      - XUI_HOST=${XUI_HOST}
+      - XUI_API_KEY=${XUI_API_KEY}
     depends_on:
       - sync-redis
 
