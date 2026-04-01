@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { BullModule } from '@nestjs/bullmq';
 import { XuiClientsController } from './xui-clients.controller';
 import { XuiClientsService } from './xui-clients.service';
 import { XuiClientsRepository } from './xui-clients.repository';

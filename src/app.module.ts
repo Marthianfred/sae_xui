@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
 import { ScyllaService } from './common/scylladb/scylladb.service';
 import { SyncOutboxService } from './features/sync-outbox/sync-outbox.service';

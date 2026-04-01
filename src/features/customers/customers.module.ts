@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { HttpModule } from '@nestjs/axios';
 import { CustomersSyncService } from './customers-sync.service';
 import { CustomersQueryService } from './query/customers-query.service';
