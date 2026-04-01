@@ -5,7 +5,6 @@ import { XuiClientsController } from './xui-clients.controller';
 import { XuiClientsService } from './xui-clients.service';
 import { XuiClientsRepository } from './xui-clients.repository';
 import { XuiClientsMapper } from './xui-clients.mapper';
-import { XuiClientsProcessor } from './xui-clients.processor';
 import { ScyllaModule } from '../../common/scylladb/scylladb.module';
 
 import { XuiMigrationController } from './xui-migration.controller';
@@ -14,23 +13,12 @@ import { XuiMigrationController } from './xui-migration.controller';
   imports: [
     HttpModule,
     ScyllaModule,
-    BullModule.registerQueue({
-      name: 'xui-sync',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 10000,
-        },
-      },
-    }),
   ],
   controllers: [XuiClientsController, XuiMigrationController],
   providers: [
     XuiClientsService,
     XuiClientsRepository,
     XuiClientsMapper,
-    XuiClientsProcessor,
   ],
   exports: [XuiClientsService],
 })

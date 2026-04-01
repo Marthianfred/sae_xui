@@ -21,12 +21,6 @@ import { XuiClientsModule } from './features/xui-clients/xui-clients.module';
     }),
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-      },
-    }),
     LoggerModule.forRoot({
       pinoHttp: {
         transport: { target: 'pino-pretty' },

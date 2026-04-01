@@ -6,8 +6,6 @@ services:
     ports:
       - "3600:3600"
     environment:
-      - REDIS_HOST=sync-redis
-      - REDIS_PORT=6379
       - NODE_ENV=production
       - SAE_TOKEN=${SAE_TOKEN}
       - SAE_CONNECT=${SAE_CONNECT}
@@ -20,17 +18,6 @@ services:
       - XUI_DB_NAME=${XUI_DB_NAME}
       - XUI_HOST=${XUI_HOST}
       - XUI_API_KEY=${XUI_API_KEY}
-    depends_on:
-      - sync-redis
-
-
-  sync-redis:
-    image: redis:7-alpine
-    container_name: sync-redis-queue
-    restart: always
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
 
 volumes:
   migration_high_performance.cql:
