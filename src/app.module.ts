@@ -8,6 +8,7 @@ import { SyncOutboxService } from './features/sync-outbox/sync-outbox.service';
 import { CustomersModule } from './features/customers/customers.module';
 import { DocumentsModule } from './features/documents/documents.module';
 
+import { ScheduleModule } from '@nestjs/schedule';
 import { ScyllaModule } from './common/scylladb/scylladb.module';
 import { XuiDbModule } from './common/xuidb/xuidb.module';
 import { XuiClientsModule } from './features/xui-clients/xui-clients.module';
@@ -19,6 +20,7 @@ import { XuiClientsModule } from './features/xui-clients/xui-clients.module';
       delimiter: '.',
     }),
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',

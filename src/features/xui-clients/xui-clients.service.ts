@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { XuiDbService } from '../../common/xuidb/xuidb.service';
 import { XuiClientData } from './interfaces/xui-api.interface';
 import { XuiClientsMapper } from './xui-clients.mapper';
@@ -9,6 +10,7 @@ import * as readline from 'readline';
 @Injectable()
 export class XuiClientsService {
   private readonly logger = new Logger(XuiClientsService.name);
+  private readonly TOTAL_EXPECTED = 711615;
 
   // Estado de la migración para consulta externa
   private migrationStatus = {
@@ -25,6 +27,16 @@ export class XuiClientsService {
     private readonly xuiDb: XuiDbService,
     private readonly xuiMapper: XuiClientsMapper,
   ) {}
+
+  /**
+   * ⏰ TAREA PROGRAMADA: Se ejecuta 4 veces al día (00, 06, 12, 18 hrs)
+   */
+  @Cron(CronExpression.EVERY_6_HOURS)
+  handleCron() {
+    this.logger.log('⏰ Iniciando Sincronización Programada (Automática - 711k)...');
+    const chunksDir = path.join(process.cwd(), 'migration_timeline');
+    this.startMassiveMigration(chunksDir);
+  }
 
   getMigrationStatus() {
     return this.migrationStatus;
@@ -53,6 +65,7 @@ export class XuiClientsService {
   }
 
   private async runMigrationLogic(chunksDir: string) {
+    const startTime = Date.now();
     const files = fs.readdirSync(chunksDir)
       .filter(f => f.endsWith('.cql'))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -137,6 +150,21 @@ export class XuiClientsService {
                   this.logger.warn(`Error sync cedula ${customer.cedula}: ${e.message}`);
                }
             }));
+            
+            // 📊 Barra de Progreso y Estadísticas Visuales (Cada 1,000 registros)
+            if (this.migrationStatus.processed % 1000 === 0) {
+              const elapsedMs = Date.now() - startTime;
+              const recsPerSec = Math.floor(this.migrationStatus.processed / (elapsedMs / 1000)) || 1;
+              const percent = (this.migrationStatus.processed / this.TOTAL_EXPECTED) * 100;
+              const barLen = 30; // Un poco más larga para más detalle
+              const filledLen = Math.floor((percent / 100) * barLen);
+              const bar = '█'.repeat(filledLen) + '░'.repeat(barLen - filledLen);
+              const etaMs = ((this.TOTAL_EXPECTED - this.migrationStatus.processed) / recsPerSec) * 1000;
+              const etaMin = Math.floor(etaMs / 60000);
+              
+              this.logger.log(`📊 [${bar}] ${percent.toFixed(1)}% | ${this.migrationStatus.processed}/${this.TOTAL_EXPECTED} | r/s: ${recsPerSec} | ETA: ${etaMin}m`);
+            }
+            
             batch.length = 0; // Limpiar batch
           }
         }
@@ -164,6 +192,25 @@ export class XuiClientsService {
 
   getReportPath() {
     return path.join(process.cwd(), 'migration_report.csv');
+  }
+
+  /**
+   * Sincroniza un único cliente desde un objeto de datos de SAE
+   */
+  async syncSingleCustomer(saeCustomer: any) {
+    const xuiData = this.xuiMapper.toXuiClient(saeCustomer);
+    if (!xuiData) return { action: 'SKIPPED_WAVE' };
+
+    try {
+      const result = await this.upsertLine(xuiData);
+      if (result.id) {
+        await this.setLineStatus(result.id, saeCustomer.nombrestatus === 'ACTIVO');
+      }
+      return result;
+    } catch (e) {
+      this.logger.error(`Error syncSingleCustomer (${saeCustomer.cedula}): ${e.message}`);
+      throw e;
+    }
   }
 
   /**

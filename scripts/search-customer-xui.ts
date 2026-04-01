@@ -4,8 +4,13 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function searchCustomerInXui() {
-  const contractId = 'CONTA6EFA2A2FB951813';
-  const username = 'SAMYJES4@GMAIL.COM';
+  const cedula = process.argv[2];
+  const contractId = process.argv[3] || '';
+  
+  if (!cedula) {
+    console.log('❌ Uso: npx ts-node scripts/search-customer-xui.ts <cedula> [contractId]');
+    process.exit(1);
+  }
   
   try {
     const connection = await mysql.createConnection({
@@ -13,14 +18,20 @@ async function searchCustomerInXui() {
       user: process.env.XUI_DB_USER,
       password: process.env.XUI_DB_PASS,
       database: process.env.XUI_DB_NAME,
+      port: Number(process.env.XUI_DB_PORT) || 3306,
     });
 
-    console.log(`>> Buscando en XUI - Contrato: ${contractId}, Username: ${username}`);
+    console.log(`>> Buscando en XUI - Cédula: ${cedula}, Contrato: ${contractId || 'N/A'}`);
     
-    const [rows]: any[] = await connection.query(
-      'SELECT * FROM `lines` WHERE admin_notes LIKE ? OR username = ?', 
-      [`%${contractId}%`, username]
-    );
+    // Búsqueda inteligente: Si hay contrato, busca por ambos. Si no, solo por cédula.
+    let query = 'SELECT * FROM `lines` WHERE username = ?';
+    let params = [cedula];
+    if (contractId) {
+      query += ' OR admin_notes LIKE ?';
+      params.push(`%${contractId}%`);
+    }
+    
+    const [rows]: any[] = await connection.query(query, params);
 
     if (rows.length > 0) {
       console.log('✅ CLIENTE ENCONTRADO EN XUI:');
