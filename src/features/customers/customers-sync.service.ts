@@ -19,8 +19,9 @@ export class CustomersSyncService {
       host: process.env.HOST_SAE || '34.172.246.50',
       port: 5432,
       user: process.env.USER_SAE || 'postgres',
-      password: process.env.PASS_SAE || '',
-      database: 'saeplus',
+      password: process.env.PASSWORD_SAE || '',
+      database: process.env.DATABASE_SAE || 'saeplus',
+      ssl: { rejectUnauthorized: false }, // Habilitar SSL para evitar bloqueos
     });
 
     const client = await pool.connect();

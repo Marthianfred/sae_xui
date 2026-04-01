@@ -1,5 +1,6 @@
-import { Controller, Post, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Query, Logger } from '@nestjs/common';
 import { CustomersSyncService } from './customers-sync.service';
+import { CustomersQueryService } from './query/customers-query.service';
 import { XuiClientsService } from '../xui-clients/xui-clients.service';
 
 @Controller('customers')
@@ -8,8 +9,19 @@ export class CustomersController {
 
   constructor(
     private readonly syncService: CustomersSyncService,
+    private readonly queryService: CustomersQueryService,
     private readonly xuiService: XuiClientsService,
   ) {}
+
+  /**
+   * CONSULTA DE ABONADOS (SAE PLUS DIRECTO)
+   * Replica la lógica de Larave: listado_abonados
+   * GET /customers?desde=...&hasta=...&cedula=...&pagina=0&nro_registros=100
+   */
+  @Get()
+  async findAll(@Query() query: any) {
+    return await this.queryService.findAll(query);
+  }
 
   /**
    * SINCRONIZADOR MAESTRO (SAE PLUS -> XUI ONE DIRECTO)
