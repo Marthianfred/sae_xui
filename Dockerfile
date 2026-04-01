@@ -22,5 +22,5 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 EXPOSE 3600
 
-# Punto de entrada explícito (NestJS no aplanado detected)
-CMD ["node", "dist/src/main.js"]
+# Punto de entrada explícito (NestJS aplanado verificado)
+CMD ["node", "dist/main.js"]
