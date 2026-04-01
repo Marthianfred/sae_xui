@@ -1,14 +1,37 @@
 import { Controller, Post, Get, Logger } from '@nestjs/common';
 import { CustomersSyncService } from './customers-sync.service';
+import { XuiClientsService } from '../xui-clients/xui-clients.service';
 
 @Controller('customers')
 export class CustomersController {
   private readonly logger = new Logger(CustomersController.name);
 
-  constructor(private readonly syncService: CustomersSyncService) {}
+  constructor(
+    private readonly syncService: CustomersSyncService,
+    private readonly xuiService: XuiClientsService
+  ) {}
 
   /**
-   * Endpoint Maestro: Ejecuta la migración desde los 16 fragmentos (Timeline) en el disco
+   * 🏆 SINCRONIZADOR MAESTRO (SAE PLUS -> XUI ONE REALTIME)
+   * Dispara la sincronización masiva de los 711,615 clientes de SAE a MySQL XUI.
+   * POST /customers/sync/sae-xui
+   */
+  @Post('sync/sae-xui')
+  async startSaeToXui() {
+    this.logger.log('--- SOLICITUD DE SINCRONIZACIÓN MAESTRA (SAE -> XUI LIVE) ---');
+    // Se ejecuta en background para no bloquear el request HTTP
+    this.syncService.syncDirectlyFromDB(this.xuiService).catch(err => {
+       this.logger.error(`Fallo en Sincronización Maestra: ${err.message}`);
+    });
+    return { 
+      message: 'Sincronización Maestra (SAE -> XUI) iniciada en segundo plano.',
+      expected_records: 711615,
+      progress_logs: 'Ver terminal de Dokploy para barra de progreso.' 
+    };
+  }
+
+  /**
+   * Endpoint Maestro: Ejecuta la migración desde los  fragmentos (Timeline) en el disco
    */
   @Post('sync/timeline')
   async runTimelineMigration() {
