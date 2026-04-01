@@ -6,11 +6,13 @@ import { CustomersProcessor } from './customers.processor';
 import { CustomersQueryService } from './query/customers-query.service';
 import { CustomersController } from './customers.controller';
 import { ScyllaModule } from '../../common/scylladb/scylladb.module';
+import { XuiClientsModule } from '../xui-clients/xui-clients.module';
 
 @Module({
   imports: [
     HttpModule,
     ScyllaModule,
+    XuiClientsModule,
     BullModule.registerQueue({
       name: 'customers-sync',
       defaultJobOptions: {

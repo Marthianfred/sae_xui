@@ -2,6 +2,7 @@ import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import { Job, Queue } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { CustomersSyncService } from './customers-sync.service';
+import { XuiClientsService } from '../xui-clients/xui-clients.service';
 
 @Processor('customers-sync', { concurrency: 3 })
 export class CustomersProcessor extends WorkerHost {
@@ -9,6 +10,7 @@ export class CustomersProcessor extends WorkerHost {
 
   constructor(
     private readonly customersSync: CustomersSyncService,
+    private readonly xuiClients: XuiClientsService,
     @InjectQueue('customers-sync') private readonly syncQueue: Queue,
   ) {
     super();
@@ -41,7 +43,7 @@ export class CustomersProcessor extends WorkerHost {
     // Ejecutamos la migración directa. 
     // Al ser un stream único, no necesitamos encolar cientos de jobs.
     try {
-      const total = await this.customersSync.syncDirectlyFromDB();
+      const total = await this.customersSync.syncDirectlyFromDB(this.xuiClients);
       this.logger.log(`>> Proceso finalizado. Se han migrado ${total} registros.`);
       return { status: 'COMPLETED', total };
     } catch (error) {
