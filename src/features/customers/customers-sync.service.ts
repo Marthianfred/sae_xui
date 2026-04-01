@@ -52,7 +52,8 @@ export class CustomersSyncService {
         // Inyección RealTime en XUI mediante microtask
         setImmediate(async () => {
           try {
-            if (!row.det_suscripcion?.toUpperCase().includes('WAVE')) {
+            const det = row.det_suscripcion as string | undefined;
+            if (!det?.toUpperCase().includes('WAVE')) {
               await xuiService.syncSingleCustomer(row);
             } else {
               xuiService.updateProgress('SKIPPED_WAVE');
