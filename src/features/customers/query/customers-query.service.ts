@@ -5,9 +5,7 @@ import { CustomersSyncService } from '../customers-sync.service';
 export class CustomersQueryService {
   private readonly logger = new Logger(CustomersQueryService.name);
 
-  constructor(
-    private readonly sync: CustomersSyncService,
-  ) {}
+  constructor(private readonly sync: CustomersSyncService) {}
 
   async findByCedula(cedula: string, apiConnect: string) {
     this.logger.warn('Modo Migración: findByCedula redirigido a sync.');

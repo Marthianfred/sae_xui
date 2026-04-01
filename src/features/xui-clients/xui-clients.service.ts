@@ -14,7 +14,7 @@ export class XuiClientsService {
     created: 0,
     updated: 0,
     skippedWave: 0,
-    error: null as string | null
+    error: null as string | null,
   };
 
   constructor(
@@ -33,7 +33,7 @@ export class XuiClientsService {
       created: 0,
       updated: 0,
       skippedWave: 0,
-      error: null
+      error: null,
     };
   }
 
@@ -56,7 +56,7 @@ export class XuiClientsService {
   /**
    * Sincroniza un único cliente desde un objeto de datos de SAE
    */
-  async syncSingleCustomer(saeCustomer: any) {
+  async syncSingleCustomer(saeCustomer: Record<string, any>) {
     const xuiData = this.xuiMapper.toXuiClient(saeCustomer);
     if (!xuiData) {
       this.updateProgress('SKIPPED_WAVE');
@@ -66,13 +66,19 @@ export class XuiClientsService {
     try {
       const result = await this.upsertLine(xuiData);
       if (result.id) {
-        await this.setLineStatus(result.id, saeCustomer.nombrestatus === 'ACTIVO');
+        await this.setLineStatus(
+          result.id,
+          saeCustomer.nombrestatus === 'ACTIVO',
+        );
       }
-      
-      this.updateProgress(result.action as any);
+
+      this.updateProgress(result.action as 'CREATED' | 'UPDATED');
       return result;
     } catch (e) {
-      this.logger.error(`Error syncSingleCustomer (${saeCustomer.cedula}): ${e.message}`);
+      const error = e as Error;
+      this.logger.error(
+        `Error syncSingleCustomer (${saeCustomer.cedula}): ${error.message}`,
+      );
       throw e;
     }
   }
@@ -82,7 +88,7 @@ export class XuiClientsService {
    */
   async upsertLine(data: XuiClientData) {
     const existing = await this.xuiDb.findByContract(data.notes || '');
-    
+
     const bouquetsJson = JSON.stringify(data.bouquets_selected);
     const now = Math.floor(Date.now() / 1000);
 
@@ -106,7 +112,7 @@ export class XuiClientsService {
         1,
         data.max_connections || 2,
         now,
-        existing.id
+        existing.id,
       ]);
       return { result: true, action: 'UPDATED', id: existing.id };
     } else {
@@ -125,7 +131,7 @@ export class XuiClientsService {
         data.max_connections || 2,
         now,
         now,
-        1
+        1,
       ]);
       // @ts-ignore
       const newId = result.insertId;

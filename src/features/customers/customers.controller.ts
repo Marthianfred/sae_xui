@@ -8,7 +8,7 @@ export class CustomersController {
 
   constructor(
     private readonly syncService: CustomersSyncService,
-    private readonly xuiService: XuiClientsService
+    private readonly xuiService: XuiClientsService,
   ) {}
 
   /**
@@ -19,15 +19,15 @@ export class CustomersController {
   @Post('sync/sae-xui')
   async startSaeToXui() {
     this.logger.log('--- SOLICITUD DE SINCRONIZACIÓN DIRECTA (SAE -> XUI) ---');
-    
+
     // Ejecución asíncrona
-    this.syncService.syncDirectlyFromDB(this.xuiService).catch(err => {
-       this.logger.error(`Fallo en Sincronización Directa: ${err.message}`);
+    this.syncService.syncDirectlyFromDB(this.xuiService).catch((err) => {
+      this.logger.error(`Fallo en Sincronización Directa: ${err.message}`);
     });
 
-    return { 
+    return {
       message: 'Sincronización Directa (SAE -> XUI) iniciada.',
-      expected_records: 711615
+      expected_records: 711615,
     };
   }
 }

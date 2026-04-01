@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
-const QueryStream = require('pg-query-stream');
+import QueryStream from 'pg-query-stream';
+import { XuiClientsService } from '../xui-clients/xui-clients.service';
 
 @Injectable()
 export class CustomersSyncService {
@@ -11,9 +12,9 @@ export class CustomersSyncService {
    * Sincronización Directa: SAE PLUS -> XUI ONE
    * Extrae los registros de SAE y los procesa en XUI por Streaming.
    */
-  async syncDirectlyFromDB(xuiService: any) {
+  async syncDirectlyFromDB(xuiService: XuiClientsService) {
     if (this.isProcessing) throw new Error('Sincronización ya activa.');
-    
+
     const pool = new Pool({
       host: process.env.HOST_SAE || '34.172.246.50',
       port: 5432,
@@ -25,7 +26,9 @@ export class CustomersSyncService {
     const client = await pool.connect();
     this.isProcessing = true;
     xuiService.resetStatus();
-    this.logger.log('🚀 Iniciando Sincronización Directa SAE PLUS -> XUI ONE...');
+    this.logger.log(
+      '🚀 Iniciando Sincronización Directa SAE PLUS -> XUI ONE...',
+    );
 
     const sql = `
       SELECT 
@@ -41,22 +44,25 @@ export class CustomersSyncService {
     const stream = client.query(queryStream);
 
     let count = 0;
-    
+
     return new Promise((resolve, reject) => {
-      stream.on('data', async (row: any) => {
+      stream.on('data', async (row: Record<string, any>) => {
         count++;
-        
+
         // Inyección RealTime en XUI mediante microtask
         setImmediate(async () => {
-           try {
-             if (!row.det_suscripcion?.toUpperCase().includes('WAVE')) {
-                await xuiService.syncSingleCustomer(row);
-             } else {
-                xuiService.updateProgress('SKIPPED_WAVE');
-             }
-           } catch (e) {
-             this.logger.error(`Error en Sync XUI (Cedula: ${row.cedula}): ${e.message}`);
-           }
+          try {
+            if (!row.det_suscripcion?.toUpperCase().includes('WAVE')) {
+              await xuiService.syncSingleCustomer(row);
+            } else {
+              xuiService.updateProgress('SKIPPED_WAVE');
+            }
+          } catch (e) {
+            const error = e as Error;
+            this.logger.error(
+              `Error en Sync XUI (Cedula: ${row.cedula}): ${error.message}`,
+            );
+          }
         });
 
         if (count % 1000 === 0) {
@@ -76,7 +82,9 @@ export class CustomersSyncService {
         pool.end();
         this.isProcessing = false;
         xuiService.setFinished();
-        this.logger.log(`✅ PROCESO FINALIZADO: ${count} registros procesados.`);
+        this.logger.log(
+          `✅ PROCESO FINALIZADO: ${count} registros procesados.`,
+        );
         resolve(count);
       });
     });

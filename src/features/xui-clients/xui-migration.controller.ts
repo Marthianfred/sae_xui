@@ -33,16 +33,19 @@ export class XuiMigrationController {
   @Get('report')
   downloadReport(@Res() res: Response) {
     const filePath = this.xuiClientsService.getReportPath();
-    
+
     // Verificar si el archivo existe antes de enviarlo
     const fs = require('fs');
     if (fs.existsSync(filePath)) {
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=migration_report.csv');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=migration_report.csv',
+      );
       return res.sendFile(filePath);
     } else {
       return res.status(HttpStatus.NOT_FOUND).json({
-        message: 'Report file not found. Ensure migration has started.'
+        message: 'Report file not found. Ensure migration has started.',
       });
     }
   }

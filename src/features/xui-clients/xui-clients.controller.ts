@@ -26,13 +26,13 @@ export class XuiClientsController {
     }
 
     const mappings = await Promise.all(
-      customers.map(c => this.repository.getMapping(c.id_contrato))
+      customers.map((c) => this.repository.getMapping(c.id_contrato)),
     );
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       customers,
-      mappings: mappings.filter(m => !!m)
+      mappings: mappings.filter((m) => !!m),
     };
   }
 
@@ -43,19 +43,25 @@ export class XuiClientsController {
   async syncIndividual(@Param('cedula') cedula: string) {
     this.logger.log(`Solicitud de sincronización individual: ${cedula}`);
     const customers = await this.repository.findByCedula(cedula);
-    
+
     if (!customers || customers.length === 0) {
-      return { success: false, message: 'No se encontró el cliente en ScyllaDB' };
+      return {
+        success: false,
+        message: 'No se encontró el cliente en ScyllaDB',
+      };
     }
 
     for (const customer of customers) {
-      await this.xuiQueue.add('sync-customer', { 
-        type: 'SYNC_CUSTOMER', 
-        customer 
+      await this.xuiQueue.add('sync-customer', {
+        type: 'SYNC_CUSTOMER',
+        customer,
       });
     }
 
-    return { success: true, message: `Sincronización encolada para ${customers.length} contratos` };
+    return {
+      success: true,
+      message: `Sincronización encolada para ${customers.length} contratos`,
+    };
   }
 
   /**
@@ -65,6 +71,9 @@ export class XuiClientsController {
   async syncMassive() {
     this.logger.log('Solicitud de sincronización GLOBAL iniciada [SAE -> XUI]');
     await this.xuiQueue.add('start-global-sync', { type: 'START_GLOBAL_SYNC' });
-    return { success: true, message: 'Proceso de sincronización global encolado' };
+    return {
+      success: true,
+      message: 'Proceso de sincronización global encolado',
+    };
   }
 }

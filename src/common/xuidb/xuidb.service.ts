@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as mysql from 'mysql2/promise';
 
@@ -11,11 +16,23 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.pool = mysql.createPool({
-      host: process.env.XUI_DB_HOST || this.configService.get<string>('XUI_DB_HOST'),
-      port: Number(process.env.XUI_DB_PORT || this.configService.get<number>('XUI_DB_PORT') || 3306),
-      user: process.env.XUI_DB_USER || this.configService.get<string>('XUI_DB_USER'),
-      password: process.env.XUI_DB_PASS || this.configService.get<string>('XUI_DB_PASS'),
-      database: process.env.XUI_DB_NAME || this.configService.get<string>('XUI_DB_NAME'),
+      host:
+        process.env.XUI_DB_HOST ||
+        this.configService.get<string>('XUI_DB_HOST'),
+      port: Number(
+        process.env.XUI_DB_PORT ||
+          this.configService.get<number>('XUI_DB_PORT') ||
+          3306,
+      ),
+      user:
+        process.env.XUI_DB_USER ||
+        this.configService.get<string>('XUI_DB_USER'),
+      password:
+        process.env.XUI_DB_PASS ||
+        this.configService.get<string>('XUI_DB_PASS'),
+      database:
+        process.env.XUI_DB_NAME ||
+        this.configService.get<string>('XUI_DB_NAME'),
       connectionLimit: 50,
       queueLimit: 0,
     });
@@ -24,14 +41,20 @@ export class XuiDbService implements OnModuleInit, OnModuleDestroy {
       await this.pool.query('SELECT 1');
       this.logger.log('Conexión a base de datos XUI MySQL exitosa');
     } catch (error) {
-      this.logger.error(`Error al conectar con la base de datos XUI: ${error.message}`);
-      
+      this.logger.error(
+        `Error al conectar con la base de datos XUI: ${error.message}`,
+      );
+
       const allXuiEnv = Object.keys(process.env)
-        .filter(k => k.startsWith('XUI'))
-        .map(k => `${k}=${process.env[k] ? '***' : 'EMPTY'}`);
-      
-      this.logger.error(`VARIABLES XUI ENCONTRADAS: ${allXuiEnv.join(', ') || 'NINGUNA'}`);
-      this.logger.error(`DOKPLOY_ENV_DEBUG: ${process.env.XUI_DB_HOST || 'EMPTY'} | Code: ${this.configService.get('XUI_DB_HOST') || 'EMPTY'}`);
+        .filter((k) => k.startsWith('XUI'))
+        .map((k) => `${k}=${process.env[k] ? '***' : 'EMPTY'}`);
+
+      this.logger.error(
+        `VARIABLES XUI ENCONTRADAS: ${allXuiEnv.join(', ') || 'NINGUNA'}`,
+      );
+      this.logger.error(
+        `DOKPLOY_ENV_DEBUG: ${process.env.XUI_DB_HOST || 'EMPTY'} | Code: ${this.configService.get('XUI_DB_HOST') || 'EMPTY'}`,
+      );
     }
   }
 

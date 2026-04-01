@@ -6,15 +6,9 @@ import { CustomersController } from './customers.controller';
 import { XuiClientsModule } from '../xui-clients/xui-clients.module';
 
 @Module({
-  imports: [
-    HttpModule,
-    XuiClientsModule,
-  ],
+  imports: [HttpModule, XuiClientsModule],
   controllers: [CustomersController],
-  providers: [
-    CustomersSyncService, 
-    CustomersQueryService
-  ],
+  providers: [CustomersSyncService, CustomersQueryService],
   exports: [CustomersSyncService, CustomersQueryService],
 })
 export class CustomersModule {}

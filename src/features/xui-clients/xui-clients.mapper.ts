@@ -22,10 +22,12 @@ export class XuiClientsMapper {
     const plan = (saeCustomer.det_suscripcion || '').toUpperCase();
     const email = (saeCustomer.email || '').toUpperCase();
 
-    return region.includes('WAVE') || 
-           contract.startsWith('WV') || 
-           plan.includes('WAVE') || 
-           email.includes('@WAVE');
+    return (
+      region.includes('WAVE') ||
+      contract.startsWith('WV') ||
+      plan.includes('WAVE') ||
+      email.includes('@WAVE')
+    );
   }
 
   /**
@@ -33,24 +35,26 @@ export class XuiClientsMapper {
    */
   normalizeRegion(rawRegion: string): string | null {
     if (!rawRegion) return '';
-    
+
     let region = rawRegion.toUpperCase();
-    
+
     // Si es WAVE, lo ignoramos por completo
     if (region.includes('WAVE')) return null;
-    
+
     // Reglas Especiales
-    if (region.includes('PTO CABELLO') && region.includes('MORON')) return 'PTO CABELLO';
+    if (region.includes('PTO CABELLO') && region.includes('MORON'))
+      return 'PTO CABELLO';
     if (region === 'FIBEX MORON') return 'MORON';
-    
+
     // Limpieza General
     region = region.replace('FIBEX', '').trim();
     region = region.replace(/[\/\.\-]/g, ' '); // Eliminar / . -
     region = region.replace(/\s+/g, ' ').trim(); // Colapsar espacios
-    
+
     // Caso especial Barcelona / Pto La Cruz
-    if (region.includes('BARCELONA') && region.includes('PTO LA CRUZ')) return 'PTO LA CRUZ';
-    
+    if (region.includes('BARCELONA') && region.includes('PTO LA CRUZ'))
+      return 'PTO LA CRUZ';
+
     return region;
   }
 
@@ -59,9 +63,9 @@ export class XuiClientsMapper {
    */
   mapBouquets(saePlan: string): number[] {
     if (!saePlan) return [1]; // Por defecto Home
-    
+
     const plan = saePlan.toUpperCase();
-    
+
     // Si es WAVE, retornamos vacío o un flag para ignorar
     if (plan.includes('WAVE')) return [];
 
@@ -88,12 +92,12 @@ export class XuiClientsMapper {
     if (bouquetIds.includes(3)) connections = 4; // Full (ID 3)
     if (bouquetIds.includes(5)) connections = 4; // Premium (ID 5)
     if (bouquetIds.includes(2)) connections = 3; // Plus (ID 2)
-    
+
     return {
       username: saeCustomer.cedula,
       password: `${saeCustomer.cedula}10`, // Patrón observado en el panel
       bouquets_selected: bouquetIds,
-      notes: saeCustomer.nro_contrato, // Guardamos el contrato corto (C52947) para búsqueda rápida
+      notes: saeCustomer.id_contrato, // SAE id_contrato es el ID mandatorio en XUI notes
       reseller_notes: region || undefined,
       email: saeCustomer.email,
       phone: saeCustomer.telef_casa || saeCustomer.telefono,

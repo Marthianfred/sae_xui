@@ -9,16 +9,9 @@ import { ScyllaModule } from '../../common/scylladb/scylladb.module';
 import { XuiMigrationController } from './xui-migration.controller';
 
 @Module({
-  imports: [
-    HttpModule,
-    ScyllaModule,
-  ],
+  imports: [HttpModule, ScyllaModule],
   controllers: [XuiClientsController, XuiMigrationController],
-  providers: [
-    XuiClientsService,
-    XuiClientsRepository,
-    XuiClientsMapper,
-  ],
+  providers: [XuiClientsService, XuiClientsRepository, XuiClientsMapper],
   exports: [XuiClientsService],
 })
 export class XuiClientsModule {}

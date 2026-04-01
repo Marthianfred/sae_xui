@@ -30,12 +30,22 @@ export class XuiClientsRepository {
   /**
    * Guarda o actualiza el mapeo de sincronización XUI
    */
-  async upsertMapping(id_contrato: string, cedula: string, xui_id: number, status: string) {
+  async upsertMapping(
+    id_contrato: string,
+    cedula: string,
+    xui_id: number,
+    status: string,
+  ) {
     const query = `
       INSERT INTO xui_sync_mapping (id_contrato, cedula, xui_id, status, last_sync)
       VALUES (?, ?, ?, ?, toTimestamp(now()))
     `;
-    return this.scyllaService.execute(query, [id_contrato, cedula, xui_id, status]);
+    return this.scyllaService.execute(query, [
+      id_contrato,
+      cedula,
+      xui_id,
+      status,
+    ]);
   }
 
   /**
