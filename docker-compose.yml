@@ -19,5 +19,3 @@ services:
       - XUI_HOST=${XUI_HOST}
       - XUI_API_KEY=${XUI_API_KEY}
 
-volumes:
-  migration_high_performance.cql:
